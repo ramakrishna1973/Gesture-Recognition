@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 animate__animated animate__fadeIn">
+        <h2 class="text-center mb-4">Real-Time Gesture Recognition</h2>
+        <div style="position: relative; width: 640px; height: 480px; margin: auto;">
+            <video id="video" width="640" height="480" autoplay class="shadow"></video>
+            <canvas id="canvas" width="640" height="480" style="position: absolute; left: 0; top: 0;"></canvas>
+        </div>
+        <p id="finger-count" class="text-center mt-3">Fingers Open: 0</p>
+        <p id="gesture" class="text-center">Gesture: None</p>
+    </div>
+</div>
+
+<!-- Load MediaPipe libraries -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+<script>
+    const videoElement = document.getElementById('video');
+    const canvasElement = document.getElementById('canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const fingerCountElement = document.getElementById('finger-count');
+    const gestureElement = document.getElementById('gesture');
+
+    // Initialize MediaPipe Hands
+    const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+    hands.onResults(onResults);
+
+    // Set up camera
+    const camera = new Camera(videoElement, {
+        onFrame: async () => {
+            await hands.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+    });
+    camera.start();
+
+    function onResults(results) {
+        // Clear and draw the video frame
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const landmarks = results.multiHandLandmarks[0];
+            const handedness = results.multiHandedness[0].label;
+
+            // Draw hand landmarks
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
+            drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
+
+            // Detect finger states
+            const fingerStates = getFingerStates(landmarks, handedness);
+            const fingerCount = fingerStates.reduce((a, b) => a + b, 0);
+            const gesture = classifyGesture(fingerStates);
+
+            // Update display
+            fingerCountElement.textContent = `Fingers Open: ${fingerCount}`;
+            gestureElement.textContent = `Gesture: ${gesture}`;
+        } else {
+            fingerCountElement.textContent = 'Fingers Open: 0';
+            gestureElement.textContent = 'Gesture: None';
+        }
+        canvasCtx.restore();
+    }
+
+    function getFingerStates(landmarks, handedness) {
+        const fingerStates = [];
+        // Thumb
+        const thumbTip = landmarks[4];
+        const thumbMcp = landmarks[2];
+        const thumbExtended = handedness === 'Right' ? thumbTip.x < thumbMcp.x : thumbTip.x > thumbMcp.x;
+        fingerStates.push(thumbExtended ? 1 : 0);
+
+        // Other fingers (index, middle, ring, pinky)
+        const fingerIndices = [[8, 6], [12, 10], [16, 14], [20, 18]]; // [tip, pip]
+        fingerIndices.forEach(([tipIdx, pipIdx]) => {
+            const tip = landmarks[tipIdx];
+            const pip = landmarks[pipIdx];
+            const extended = tip.y < pip.y; // Finger is up if tip is above pip joint
+            fingerStates.push(extended ? 1 : 0);
+        });
+        return fingerStates;
+    }
+
+    function classifyGesture(fingerStates) {
+        const statesStr = fingerStates.join(',');
+        switch (statesStr) {
+            case '1,0,0,0,0': return 'Thumbs Up';
+            case '0,1,1,0,0': return 'Peace Sign';
+            case '0,0,0,0,0': return 'Fist';
+            case '1,1,1,1,1': return 'Open Hand';
+            default: return 'Unknown Gesture';
+        }
+    }
+</script>
+{% endblock %}

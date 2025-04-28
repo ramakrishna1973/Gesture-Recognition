@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center animate__animated animate__bounceInDown">
+        <h1 class="display-1" style="font-size: 10rem; color: #dc3545;">404</h1>
+        <p class="lead">Oops! Page not found.</p>
+        <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg">Back to Home</a>
+    </div>
+</div>
+{% endblock %}

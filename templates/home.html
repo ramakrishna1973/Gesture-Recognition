@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron text-center animate__animated animate__zoomIn" style="background: linear-gradient(135deg, #007bff, #00c4cc); color: white;">
+    <h1 class="display-4">Welcome to Gesture Recognition</h1>
+    <p class="lead">Experience real-time gesture recognition with your webcam!</p>
+    <hr class="my-4" style="border-color: rgba(255,255,255,0.5);">
+    <p>Get started by signing up or logging in.</p>
+    <a class="btn btn-light btn-lg animate__animated animate__pulse animate__infinite" href="{{ url_for('signup') }}">Sign Up</a>
+    <a class="btn btn-outline-light btn-lg" href="{{ url_for('login') }}">Log In</a>
+</div>
+{% endblock %}
